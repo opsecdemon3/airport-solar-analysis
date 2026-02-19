@@ -1,9 +1,6 @@
 [build]
   command = "npm run build"
-  publish = ".next"
-
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+  publish = "out"
 
 # Proxy /api/* requests to the Render backend
 [[redirects]]
@@ -11,3 +8,9 @@
   to = "https://airport-solar-api2.onrender.com/api/:splat"
   status = 200
   force = true
+
+# SPA fallback — serve index.html for all routes (client-side routing)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

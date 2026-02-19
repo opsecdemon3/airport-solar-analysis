@@ -1,18 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // 'standalone' only needed for Docker deployments
-  ...(process.env.DOCKER_BUILD === '1' ? { output: 'standalone' } : {}),
+  // Static export for Netlify/static hosts; standalone for Docker
+  output: process.env.DOCKER_BUILD === '1' ? 'standalone' : 'export',
   
-  // Proxy /api/* requests to FastAPI backend
-  async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
-      },
-    ];
+  // Images: use unoptimized for static export
+  images: {
+    unoptimized: true,
   },
 };
 
