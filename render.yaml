@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: airport-solar-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: CORS_ORIGINS
+        value: https://airport-solar-analysis.vercel.app,http://localhost:3000
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DATA_DIR
+        value: /app/data
+    healthCheckPath: /health

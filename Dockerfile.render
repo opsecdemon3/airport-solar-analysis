@@ -1,0 +1,41 @@
+# =============================================================================
+# Render.com Dockerfile for FastAPI Backend
+# Build context: repo root
+# =============================================================================
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system deps for geospatial libraries
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gdal-bin \
+    libgdal-dev \
+    libgeos-dev \
+    libproj-dev \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY api/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy API source
+COPY api/ ./
+
+# Copy data (airports CSV + prebuilt cache)
+COPY data/airports/ /app/data/airports/
+COPY data/airport_cache_v2/ /app/data/airport_cache_v2/
+
+# Tell the API where data lives
+ENV DATA_DIR=/app/data
+
+# Expose port
+EXPOSE 8001
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8001}/health || exit 1
+
+# Render sets PORT env var; default to 8001
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8001} --workers 2"]

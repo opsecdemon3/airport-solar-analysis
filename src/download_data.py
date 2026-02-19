@@ -13,7 +13,8 @@ STATES_NEEDED = [
     "Georgia", "Texas", "Colorado", "Illinois", "California", 
     "NewYork", "Nevada", "Florida", "NorthCarolina", "Washington",
     "Arizona", "Massachusetts", "NewJersey", "Minnesota", "Michigan",
-    "Pennsylvania", "Maryland", "Virginia", "Tennessee", "Hawaii"
+    "Pennsylvania", "Maryland", "Virginia", "Tennessee", "Hawaii",
+    "NewMexico"
 ]
 
 # Mapping from our state names to Microsoft's URL format
@@ -38,6 +39,7 @@ STATE_URL_MAP = {
     "Virginia": "Virginia",
     "Tennessee": "Tennessee",
     "Hawaii": "Hawaii",
+    "NewMexico": "NewMexico",
 }
 
 def download_building_footprints(state, output_dir="data/buildings"):
@@ -45,7 +47,8 @@ def download_building_footprints(state, output_dir="data/buildings"):
     os.makedirs(output_dir, exist_ok=True)
     
     state_url = STATE_URL_MAP.get(state, state)
-    url = f"https://usbuildingdata.blob.core.windows.net/usbuildings-v2/{state_url}.geojson.zip"
+    # Use the new minedbuildings URL (Microsoft moved the data)
+    url = f"https://minedbuildings.z5.web.core.windows.net/legacy/usbuildings-v2/{state_url}.geojson.zip"
     
     output_path = os.path.join(output_dir, f"{state}.geojson.zip")
     

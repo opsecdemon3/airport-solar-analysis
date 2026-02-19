@@ -1,0 +1,386 @@
+'use client';
+
+import { X, Zap, DollarSign, Leaf, MapPin, Ruler, Calendar, TrendingUp, Shield, EyeOff, Trash2, Pencil, Building2 } from 'lucide-react';
+
+interface BuildingDetailPanelProps {
+  buildings: any[];
+  onClose: () => void;
+  onHide?: (buildings: any[]) => void;
+  onRemoveCustom?: (id: string) => void;
+}
+
+export function BuildingDetailPanel({ buildings, onClose, onHide, onRemoveCustom }: BuildingDetailPanelProps) {
+  if (!buildings || buildings.length === 0) return null;
+
+  const isMulti = buildings.length > 1;
+  const building = buildings[0]; // For single-building view
+
+  // Combined stats for multi-selection
+  const combined = isMulti ? {
+    count: buildings.length,
+    area_m2: buildings.reduce((s, b) => s + (b.area_m2 || 0), 0),
+    usable_area_m2: buildings.reduce((s, b) => s + (b.solar?.usable_area_m2 || 0), 0),
+    capacity_kw: buildings.reduce((s, b) => s + (b.solar?.capacity_kw || 0), 0),
+    annual_mwh: buildings.reduce((s, b) => s + (b.solar?.annual_mwh || 0), 0),
+    annual_revenue: buildings.reduce((s, b) => s + (b.solar?.annual_revenue || 0), 0),
+    gross_install_cost: buildings.reduce((s, b) => s + (b.solar?.gross_install_cost || 0), 0),
+    itc_savings: buildings.reduce((s, b) => s + (b.solar?.itc_savings || 0), 0),
+    install_cost: buildings.reduce((s, b) => s + (b.solar?.install_cost || 0), 0),
+    annual_om: buildings.reduce((s, b) => s + (b.solar?.annual_om || 0), 0),
+    co2_avoided_tons: buildings.reduce((s, b) => s + (b.solar?.co2_avoided_tons || 0), 0),
+    co2_avoided_lifetime_tons: buildings.reduce((s, b) => s + (b.solar?.co2_avoided_lifetime_tons || 0), 0),
+    homes_powered: buildings.reduce((s, b) => s + (b.solar?.homes_powered || 0), 0),
+    lifetime_mwh: buildings.reduce((s, b) => s + (b.solar?.lifetime_mwh || 0), 0),
+  } : null;
+
+  // Multi-building panel
+  if (isMulti && combined) {
+    const netRevenue = combined.annual_revenue - combined.annual_om;
+    const payback = netRevenue > 0 ? combined.install_cost / netRevenue : 999;
+
+    return (
+      <div className="fixed right-0 top-0 h-full w-96 bg-white dark:bg-gray-900 shadow-2xl border-l border-gray-200 dark:border-gray-700 z-[1000] overflow-y-auto animate-slide-in">
+        {/* Header */}
+        <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-blue-500" />
+            {combined.count} Buildings Selected
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            aria-label="Close panel"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Roof Area */}
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Ruler className="w-4 h-4 text-primary-600" />
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Combined Roof Area</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-gray-500 dark:text-gray-400">Total Roof</span>
+                <div className="font-semibold text-gray-900 dark:text-gray-100">{combined.area_m2.toLocaleString()} m²</div>
+              </div>
+              <div>
+                <span className="text-gray-500 dark:text-gray-400">Usable Area</span>
+                <div className="font-semibold text-gray-900 dark:text-gray-100">{combined.usable_area_m2.toLocaleString()} m²</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Solar Generation */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Zap className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Combined Solar Generation</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-gray-500 dark:text-gray-400">Peak Capacity</span>
+                <div className="text-xl font-bold text-blue-700 dark:text-blue-400">{combined.capacity_kw.toLocaleString()} kW</div>
+              </div>
+              <div>
+                <span className="text-gray-500 dark:text-gray-400">Annual Energy</span>
+                <div className="text-xl font-bold text-blue-700 dark:text-blue-400">{combined.annual_mwh.toLocaleString()} MWh</div>
+              </div>
+              <div>
+                <span className="text-gray-500 dark:text-gray-400">Lifetime Output</span>
+                <div className="font-semibold text-gray-900 dark:text-gray-100">{combined.lifetime_mwh.toLocaleString()} MWh</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Financials */}
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <DollarSign className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Combined Financials</span>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400">Gross Install Cost</span>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">${combined.gross_install_cost.toLocaleString()}</span>
+              </div>
+              {combined.itc_savings > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1"><Shield className="w-3 h-3" /> 30% ITC Credit</span>
+                  <span className="font-semibold text-green-600">-${combined.itc_savings.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-t border-green-200 dark:border-green-800 pt-2">
+                <span className="text-gray-500 dark:text-gray-400">Net Cost</span>
+                <span className="font-bold text-gray-900 dark:text-gray-100">${combined.install_cost.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400">Annual Revenue</span>
+                <span className="font-semibold text-green-700 dark:text-green-400">${combined.annual_revenue.toLocaleString()}/yr</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400">Annual O&M</span>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">-${combined.annual_om.toLocaleString()}/yr</span>
+              </div>
+              <div className="flex justify-between border-t border-green-200 dark:border-green-800 pt-2">
+                <span className="text-gray-700 dark:text-gray-300 font-medium flex items-center gap-1"><Calendar className="w-3 h-3" /> Est. Payback</span>
+                <span className="font-bold text-green-700 dark:text-green-400">{payback < 100 ? payback.toFixed(1) : '—'} years</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Environmental */}
+          <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Leaf className="w-4 h-4 text-emerald-600" />
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Combined Environmental Impact</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-gray-500 dark:text-gray-400">CO₂ Avoided/yr</span>
+                <div className="font-semibold text-emerald-700 dark:text-emerald-400">{combined.co2_avoided_tons.toLocaleString()} tons</div>
+              </div>
+              <div>
+                <span className="text-gray-500 dark:text-gray-400">Lifetime CO₂</span>
+                <div className="font-semibold text-emerald-700 dark:text-emerald-400">{combined.co2_avoided_lifetime_tons.toLocaleString()} tons</div>
+              </div>
+              <div>
+                <span className="text-gray-500 dark:text-gray-400">Homes Powered</span>
+                <div className="font-semibold text-gray-900 dark:text-gray-100">{combined.homes_powered.toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Exclude All button */}
+          {onHide && (
+            <button
+              onClick={() => onHide(buildings)}
+              className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800 rounded-xl transition-colors"
+            >
+              <EyeOff className="w-4 h-4" />
+              Exclude All {combined.count} Buildings
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Single-building panel (original)
+  const solar = building.solar || {};
+  const hasITC = solar.itc_savings > 0;
+
+  return (
+    <div className="fixed right-0 top-0 h-full w-96 bg-white dark:bg-gray-900 shadow-2xl border-l border-gray-200 dark:border-gray-700 z-[1000] overflow-y-auto animate-slide-in">
+      {/* Header */}
+      <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          Building Details
+          {building.isCustom && (
+            <span className="text-xs font-medium bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Pencil className="w-3 h-3" /> Custom
+            </span>
+          )}
+        </h3>
+        <div className="flex items-center gap-1">
+          {onHide && (
+            <button
+              onClick={() => onHide([building])}
+              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+              aria-label="Exclude building"
+              title="Exclude this building (false positive or duplicate)"
+            >
+              <EyeOff className="w-5 h-5" />
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            aria-label="Close panel"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* Location */}
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <MapPin className="w-4 h-4 text-primary-600" />
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Location</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Distance</span>
+              <div className="font-semibold text-gray-900 dark:text-gray-100">{building.distance_km?.toFixed(2)} km</div>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Coordinates</span>
+              <div className="font-mono text-xs text-gray-700 dark:text-gray-300">
+                {building.lat?.toFixed(4)}, {building.lon?.toFixed(4)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Roof Area */}
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Ruler className="w-4 h-4 text-primary-600" />
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Roof Area</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Total Roof</span>
+              <div className="font-semibold text-gray-900 dark:text-gray-100">{building.area_m2?.toLocaleString()} m²</div>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Usable Area</span>
+              <div className="font-semibold text-gray-900 dark:text-gray-100">
+                {solar.usable_area_m2?.toLocaleString()} m²
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Solar Generation */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Solar Generation</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Peak Capacity</span>
+              <div className="text-xl font-bold text-blue-700 dark:text-blue-400">{solar.capacity_kw?.toLocaleString()} kW</div>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Annual Energy</span>
+              <div className="text-xl font-bold text-blue-700 dark:text-blue-400">{solar.annual_mwh?.toLocaleString()} MWh</div>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Capacity Factor</span>
+              <div className="font-semibold text-gray-900 dark:text-gray-100">{((solar.capacity_factor || 0) * 100).toFixed(1)}%</div>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Lifetime Output</span>
+              <div className="font-semibold text-gray-900 dark:text-gray-100">{solar.lifetime_mwh?.toLocaleString()} MWh</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Financials */}
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <DollarSign className="w-4 h-4 text-green-600" />
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Financial Analysis</span>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500 dark:text-gray-400">Gross Install Cost</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                ${solar.gross_install_cost?.toLocaleString()}
+              </span>
+            </div>
+            {hasITC && (
+              <div className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                  <Shield className="w-3 h-3" /> 30% ITC Credit
+                </span>
+                <span className="font-semibold text-green-600">-${solar.itc_savings?.toLocaleString()}</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-green-200 dark:border-green-800 pt-2">
+              <span className="text-gray-500 dark:text-gray-400">Net Cost</span>
+              <span className="font-bold text-gray-900 dark:text-gray-100">${solar.install_cost?.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 dark:text-gray-400">Annual Revenue</span>
+              <span className="font-semibold text-green-700 dark:text-green-400">
+                ${solar.annual_revenue?.toLocaleString()}/yr
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500 dark:text-gray-400">Annual O&M</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">-${solar.annual_om?.toLocaleString()}/yr</span>
+            </div>
+            <div className="flex justify-between border-t border-green-200 dark:border-green-800 pt-2">
+              <span className="text-gray-700 dark:text-gray-300 font-medium flex items-center gap-1">
+                <Calendar className="w-3 h-3" /> Payback Period
+              </span>
+              <span className="font-bold text-green-700 dark:text-green-400">{solar.payback_years} years</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-700 dark:text-gray-300 font-medium flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" /> 25-Year NPV
+              </span>
+              <span className={`font-bold ${(solar.npv_25yr || 0) >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600'}`}>
+                ${solar.npv_25yr?.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Environmental */}
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Leaf className="w-4 h-4 text-emerald-600" />
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Environmental Impact</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">CO₂ Avoided/yr</span>
+              <div className="font-semibold text-emerald-700 dark:text-emerald-400">
+                {solar.co2_avoided_tons?.toLocaleString()} tons
+              </div>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Lifetime CO₂</span>
+              <div className="font-semibold text-emerald-700 dark:text-emerald-400">
+                {solar.co2_avoided_lifetime_tons?.toLocaleString()} tons
+              </div>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Homes Powered</span>
+              <div className="font-semibold text-gray-900 dark:text-gray-100">{solar.homes_powered?.toLocaleString()}</div>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Grid CO₂ Rate</span>
+              <div className="font-semibold text-gray-900 dark:text-gray-100">{solar.co2_rate_kg_kwh} kg/kWh</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Assumptions */}
+        <div className="text-xs text-gray-400 dark:text-gray-500 pt-2">
+          <p>Panel degradation: {((solar.degradation_rate || 0.005) * 100).toFixed(1)}%/yr &bull; Discount rate: {((solar.discount_rate || 0.06) * 100)}%</p>
+          <p>Install cost: ${solar.cost_per_watt}/W &bull; O&M: $15/kW/yr</p>
+          <p>Sources: NREL 2023 ATB, SEIA 2025, EPA eGRID 2022</p>
+        </div>
+
+        {/* Action Button */}
+        {building.isCustom && onRemoveCustom ? (
+          <button
+            onClick={() => { onRemoveCustom(building.id); onClose(); }}
+            className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800 rounded-xl transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Remove Custom Building
+          </button>
+        ) : onHide && (
+          <button
+            onClick={() => onHide([building])}
+            className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800 rounded-xl transition-colors"
+          >
+            <EyeOff className="w-4 h-4" />
+            Exclude Building
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

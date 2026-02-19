@@ -1,77 +1,135 @@
 #!/usr/bin/env python3
 """
 Calculate solar generation potential for rooftop areas.
+
+Data sources & methodology:
+- Capacity factors: NREL 2023 Annual Technology Baseline (ATB)
+  https://atb.nrel.gov/electricity/2023/commercial_pv
+- Commercial PV assumptions based on 200kW flat-roof systems
+- DC capacity factors range from 12.7% (Class 10, GHI<3.75) to 19.8% (Class 1, GHI>5.75)
+- US mean capacity factor: 15.8% (NREL 2023)
 """
 
 import pandas as pd
 
-# Solar capacity factors by state (from NREL data)
-# This represents the fraction of peak capacity achieved on average
-# Accounts for: sun angle, weather, daylight hours
+# =============================================================================
+# NREL 2023 ATB CAPACITY FACTORS BY STATE
+# =============================================================================
+# These are DC capacity factors for commercial rooftop PV systems
+# Based on Global Horizontal Irradiance (GHI) resource classes
+# Source: NREL reV model using NSRDB solar resource data
+# 
+# Class 1 (GHI > 5.75): 19.8%  - Best solar (AZ, NV, NM)
+# Class 2 (GHI 5.5-5.75): 19.1%
+# Class 3 (GHI 5.25-5.5): 18.0%
+# Class 4 (GHI 5.0-5.25): 17.1%
+# Class 5 (GHI 4.75-5.0): 16.3%
+# Class 6 (GHI 4.5-4.75): 16.1%
+# Class 7 (GHI 4.25-4.5): 15.3%
+# Class 8 (GHI 4.0-4.25): 14.6%
+# Class 9 (GHI 3.75-4.0): 14.0%
+# Class 10 (GHI < 3.75): 12.7% - Worst solar (WA, OR)
+
 CAPACITY_FACTORS = {
-    # Sunny Southwest
-    "Arizona": 0.26,
-    "Nevada": 0.25,
-    "California": 0.24,
-    "New Mexico": 0.25,
+    # Class 1-2: Sunny Southwest (GHI > 5.5)
+    "Arizona": 0.198,
+    "Nevada": 0.191,
+    "New Mexico": 0.198,
     
-    # Texas & South
-    "Texas": 0.22,
-    "Florida": 0.21,
-    "Louisiana": 0.20,
+    # Class 2-3: California varies by region (averaging)
+    "California": 0.185,
     
-    # Mountain West
-    "Colorado": 0.22,
-    "Utah": 0.23,
+    # Class 3-4: Texas & South
+    "Texas": 0.175,
+    "Florida": 0.171,
+    "Louisiana": 0.168,
+    "Hawaii": 0.180,
     
-    # Southeast
-    "Georgia": 0.19,
-    "North Carolina": 0.18,
-    "South Carolina": 0.19,
-    "Tennessee": 0.18,
-    "Alabama": 0.19,
+    # Class 4: Mountain West
+    "Colorado": 0.171,
+    "Utah": 0.175,
     
-    # Mid-Atlantic
-    "Virginia": 0.17,
-    "Maryland": 0.17,
-    "New Jersey": 0.17,
-    "Pennsylvania": 0.16,
-    "Delaware": 0.17,
+    # Class 4-5: Southeast
+    "Georgia": 0.168,
+    "North Carolina": 0.163,
+    "South Carolina": 0.168,
+    "Tennessee": 0.161,
+    "Alabama": 0.168,
     
-    # Northeast
-    "New York": 0.16,
-    "Massachusetts": 0.16,
-    "Connecticut": 0.16,
-    "Rhode Island": 0.16,
+    # Class 5-6: Mid-Atlantic
+    "Virginia": 0.161,
+    "Maryland": 0.158,
+    "New Jersey": 0.158,
+    "Pennsylvania": 0.153,
+    "Delaware": 0.158,
     
-    # Midwest
-    "Illinois": 0.16,
-    "Michigan": 0.15,
-    "Minnesota": 0.16,
-    "Ohio": 0.15,
-    "Indiana": 0.16,
-    "Wisconsin": 0.15,
+    # Class 6-7: Northeast
+    "New York": 0.153,
+    "Massachusetts": 0.153,
+    "Connecticut": 0.153,
+    "Rhode Island": 0.153,
     
-    # Pacific Northwest
-    "Washington": 0.15,
-    "Oregon": 0.16,
+    # Class 6-7: Midwest
+    "Illinois": 0.153,
+    "Michigan": 0.146,
+    "Minnesota": 0.153,
+    "Ohio": 0.146,
+    "Indiana": 0.153,
+    "Wisconsin": 0.146,
     
-    # Islands
-    "Hawaii": 0.22,
+    # Class 9-10: Pacific Northwest (low GHI)
+    "Washington": 0.140,
+    "Oregon": 0.146,
 }
 
-# Default for unlisted states
-DEFAULT_CAPACITY_FACTOR = 0.17
+# US Mean from NREL 2023 ATB
+DEFAULT_CAPACITY_FACTOR = 0.158
+
+
+# =============================================================================
+# DEFAULT ASSUMPTIONS (NREL 2023 ATB + Industry Standards)
+# =============================================================================
+
+# Panel power density: 200 W/m² is conservative for 2024+
+# - Standard panels: 180-200 W/m² (18-20% efficiency at 1000W/m² irradiance)
+# - Premium panels: 200-220 W/m² (20-22% efficiency)
+# - Using 200 W/m² as reasonable commercial default
+DEFAULT_WATTS_PER_M2 = 200
+
+# Usable roof fraction: What % of roof can actually have panels?
+# Research shows 50-75% depending on building type:
+# - Warehouses (simple flat roofs): 60-75%
+# - Commercial buildings (more HVAC, skylights): 50-60%
+# - NREL study (Gagnon et al., 2016) used 50% for small, 75% for large
+# Using 60% as balanced estimate for mixed building stock
+DEFAULT_USABLE_FRACTION = 0.60
+
+# DC-to-AC ratio (inverter loading ratio): 1.23 per NREL 2023 ATB
+# This is already baked into capacity factor calculations
+DC_AC_RATIO = 1.23
+
+# Degradation rate: 0.7%/year per NREL 2023 ATB
+# This is already averaged into capacity factor over 30-year lifetime
+ANNUAL_DEGRADATION = 0.007
+
+# Average US home consumption: ~10,500 kWh/year (EIA 2022)
+AVG_HOME_KWH_YEAR = 10500
+
+# Grid CO2 intensity: 0.386 kg CO2/kWh (EPA eGRID 2022 US average)
+GRID_CO2_KG_PER_KWH = 0.386
 
 
 def estimate_solar_potential(
     building_area_m2, 
     state, 
-    usable_fraction=0.60,
-    watts_per_m2=200
+    usable_fraction=DEFAULT_USABLE_FRACTION,
+    watts_per_m2=DEFAULT_WATTS_PER_M2
 ):
     """
     Estimate annual solar generation for rooftop area.
+    
+    Based on NREL 2023 Annual Technology Baseline methodology.
+    https://atb.nrel.gov/electricity/2023/commercial_pv
     
     Parameters:
     -----------
@@ -81,14 +139,15 @@ def estimate_solar_potential(
         State name for capacity factor lookup
     usable_fraction : float
         Fraction of roof usable for panels (default 60%)
-        Accounts for: HVAC equipment, skylights, edges, structural issues
+        Accounts for: HVAC equipment, skylights, edges, setbacks, structural limits
+        Range: 0.50 (complex roofs) to 0.75 (simple warehouses)
     watts_per_m2 : float
-        Peak watts per square meter of panel (default 200W)
-        Modern commercial panels achieve 200-220 W/m²
+        Peak DC watts per square meter of panel area (default 200W)
+        Range: 180 (budget panels) to 220 (premium panels)
     
     Returns:
     --------
-    dict with solar generation estimates
+    dict with solar generation estimates including all input assumptions
     """
     # Get capacity factor for state
     capacity_factor = CAPACITY_FACTORS.get(state, DEFAULT_CAPACITY_FACTOR)
@@ -112,10 +171,20 @@ def estimate_solar_potential(
     # Average US home uses ~10,500 kWh/year
     equivalent_homes = annual_kwh / 10500
     
-    # CO2 offset (US grid average: ~0.4 kg CO2 per kWh)
-    co2_offset_tons = annual_kwh * 0.0004  # metric tons
+    # CO2 offset using EPA eGRID 2022 US average
+    co2_offset_tons = annual_kwh * GRID_CO2_KG_PER_KWH / 1000  # metric tons
     
     return {
+        # Input assumptions (for transparency)
+        'assumptions': {
+            'usable_fraction': usable_fraction,
+            'watts_per_m2': watts_per_m2,
+            'capacity_factor': capacity_factor,
+            'avg_home_kwh_year': AVG_HOME_KWH_YEAR,
+            'grid_co2_kg_kwh': GRID_CO2_KG_PER_KWH,
+        },
+        # Calculated values
+        'total_roof_m2': building_area_m2,
         'usable_area_m2': usable_area_m2,
         'usable_area_sqft': usable_area_sqft,
         'peak_capacity_kw': peak_kw,
