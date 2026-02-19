@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     API_RELOAD: bool = Field(default=False, description="Auto-reload on changes")
     
     # CORS
-    CORS_ORIGINS: str = Field(default="http://localhost:3000", description="Allowed origins")
+    CORS_ORIGINS: str = Field(default="http://localhost:3000,https://charming-monstera-eab521.netlify.app", description="Allowed origins")
     
     # Data Paths
     DATA_DIR: str = Field(default="../data", description="Data directory")
